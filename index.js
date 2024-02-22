@@ -31,6 +31,7 @@ app.get("/api/circuits/:ref", async (req, res) => {
     }
 
     res.json(data);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
@@ -50,6 +51,7 @@ app.get("/api/circuits/season/:year", async (req, res) => {
     }
 
     res.json(data);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
@@ -75,6 +77,7 @@ app.get("/api/constructors/:ref", async (req, res) => {
     }
 
     res.json(data);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
@@ -100,6 +103,7 @@ app.get("/api/drivers/:ref", async (req, res) => {
     }
 
     res.json(data);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
@@ -118,11 +122,31 @@ app.get("/api/drivers/race/:raceId", async (req, res) => {
     }
 
     res.json(data);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
 });
+
+app.get("/api/drivers/search/:substring", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("drivers")
+      .select(`driverRef, number, code, forename, surname, nationality`)
+      .ilike("surname", `${req.params.substring}%`);
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Driver not found' });
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+})
 
 // -------- RACES --------
 
@@ -138,6 +162,27 @@ app.get("/api/races/:raceId", async (req, res) => {
     }
 
     res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
+app.get("/api/races/season/:year", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("races")
+      .select(`year, round, name, date`)
+      .eq("year", req.params.year)
+      .order("round", { ascending: true });
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Race not found' });
+    }
+
+    res.json(data);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
@@ -158,6 +203,7 @@ app.get("/api/results/:raceId", async (req, res) => {
     }
 
     res.json(data);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
