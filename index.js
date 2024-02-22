@@ -37,6 +37,25 @@ app.get("/api/circuits/:ref", async (req, res) => {
   }
 });
 
+app.get("/api/circuits/season/:year", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("races")
+      .select(`circuits (circuitRef, name, location, country), year, round`)
+      .eq("year", req.params.year)
+      .order("round", { ascending: true });
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Season not found' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
 // -------- CONSTRUCTORS --------
 
 app.get("/api/constructors", async (req, res) => {
@@ -87,6 +106,24 @@ app.get("/api/drivers/:ref", async (req, res) => {
   }
 });
 
+app.get("/api/drivers/race/:raceId", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("results")
+      .select(`drivers (driverRef, forename, surname, code)`)
+      .eq("raceId", req.params.raceId);
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Driver not found' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
 // -------- RACES --------
 
 app.get("/api/races/:raceId", async (req, res) => {
@@ -109,14 +146,12 @@ app.get("/api/races/:raceId", async (req, res) => {
 
 // -------- RESULTS --------
 
-// !! Doesnt work because of foreign key issues
 app.get("/api/results/:raceId", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("results")
-      .select(`driver (driverRef, code, forename, surname), race (name, round, year, date), constructor (name, constructorRef, nationality)`)
+      .select(`drivers (driverRef, code, forename, surname), races (name, round, year, date), constructors (name, constructorRef, nationality)`)
       .eq("raceId", req.params.raceId)
-      .order("grid", { ascending: true })
 
     if (!data || data.length === 0) {
       return res.status(404).json({ error: 'Not Found', details: 'Result not found' });
