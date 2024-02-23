@@ -12,7 +12,7 @@ app.get("/api/seasons", async (req, res) => {
   res.send(data);
 });
 
-// -------- CIRCUITS --------
+//                                      ---------------- CIRCUITS ----------------
 
 app.get("/api/circuits", async (req, res) => {
   const {data, error} = await supabase.from("circuits").select();
@@ -24,7 +24,7 @@ app.get("/api/circuits/:ref", async (req, res) => {
     const { data, error } = await supabase
       .from("circuits")
       .select(`circuitRef, name, location, country, lat, lng`)
-      .eq("circuitRef", req.params.ref);
+      .eq("circuitRef", req.params.ref)
 
     if (!data || data.length === 0) {
       return res.status(404).json({ error: 'Not Found', details: 'Circuit not found' });
@@ -58,7 +58,7 @@ app.get("/api/circuits/season/:year", async (req, res) => {
   }
 });
 
-// -------- CONSTRUCTORS --------
+//                                      ---------------- CONSTRUCTORS ----------------
 
 app.get("/api/constructors", async (req, res) => {
   const {data, error} = await supabase.from("constructors").select();
@@ -84,7 +84,7 @@ app.get("/api/constructors/:ref", async (req, res) => {
   }
 });
 
-// -------- DRIVERS --------
+//                                      ---------------- DRIVERS ----------------
 
 app.get("/api/drivers", async (req, res) => {
   const {data, error} = await supabase.from("drivers").select();
@@ -148,7 +148,7 @@ app.get("/api/drivers/search/:substring", async (req, res) => {
   }
 })
 
-// -------- RACES --------
+//                                      ---------------- RACES ----------------
 
 app.get("/api/races/:raceId", async (req, res) => {
   try {
@@ -189,7 +189,78 @@ app.get("/api/races/season/:year", async (req, res) => {
   }
 });
 
-// -------- RESULTS --------
+app.get("/api/races/season/:year/:round", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("races")
+      .select(`raceId, year, name, date, time`)
+      .eq("year", req.params.year)
+      .eq("round", req.params.round);
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Race not found' });
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+})
+
+app.get("/api/races/circuits/:ref", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("races")
+      .select(`year, name, date, circuits (circuitRef, name, location, country)`)
+      .eq("circuits.circuitRef", req.params.ref)
+      .order("year", { ascending: true })
+      .not("circuits", "is", null);
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Races not found' });
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
+app.get("/api/races/circuits/:ref/season/:start/:end", async (req, res) => {
+  try {
+    const startYear = parseInt(req.params.start);
+    const endYear = parseInt(req.params.end);
+
+    if (startYear > endYear) {
+      return res.status(400).json({ error: 'Bad Request', details: 'Start year cannot be greater than end year' });
+    }
+    
+    const { data, error } = await supabase
+      .from("races")
+      .select(`year, name, date, circuits (circuitRef, name, location, country)`)
+      .eq("circuits.circuitRef", req.params.ref)
+      .gte("year", req.params.start)
+      .lte("year", req.params.end)
+      .not("circuits", "is", null)
+      .order("year", { ascending: true });
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Races not found' });
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
+//                                      ---------------- RESULTS ----------------
 
 app.get("/api/results/:raceId", async (req, res) => {
   try {
@@ -209,6 +280,27 @@ app.get("/api/results/:raceId", async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
 });
+
+app.get("/api/results/driver/:ref", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("results")
+      .select(`drivers (driverRef, code, forename, surname), grid, position, points, races (name, round, year, date)`)
+      .eq("drivers.driverRef", req.params.ref)
+      .not("drivers", "is", null)
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Driver not found' });
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+})
+
 
 app.listen(8080, () => {
   console.log("listening on port 8080");
