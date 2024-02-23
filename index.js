@@ -238,7 +238,7 @@ app.get("/api/races/circuits/:ref/season/:start/:end", async (req, res) => {
     if (startYear > endYear) {
       return res.status(400).json({ error: 'Bad Request', details: 'Start year cannot be greater than end year' });
     }
-    
+
     const { data, error } = await supabase
       .from("races")
       .select(`year, name, date, circuits (circuitRef, name, location, country)`)
@@ -299,8 +299,131 @@ app.get("/api/results/driver/:ref", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
+});
+
+app.get("/api/results/driver/:ref/seasons/:start/:end", async (req, res) => {
+  try {
+    const startYear = parseInt(req.params.start);
+    const endYear = parseInt(req.params.end);
+
+    if (startYear > endYear) {
+      return res.status(400).json({ error: 'Bad Request', details: 'Start year cannot be greater than end year' });
+    }
+
+    const { data, error } = await supabase
+      .from("results")
+      .select(`drivers (driverRef, code, forename, surname), grid, position, points, races (name, round, year, date)`)
+      .eq("drivers.driverRef", req.params.ref)
+      .gte("races.year", req.params.start)
+      .lte("races.year", req.params.end)
+      .not("races", "is", null)
+      .not("drivers", "is", null)
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Results not found' });
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
 })
 
+//                                      ---------------- QUALI + STANDINGS ----------------
+
+app.get("/api/qualifying/:raceId", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("qualifying")
+      .select(`races (raceId, year, name, date, time), drivers (driverRef, forename, surname, number, code, nationality)`)
+      .eq("raceId", req.params.raceId)
+      .order("position", { ascending: true });
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Qualifying not found' });
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
+app.get("/api/standings/:raceId/drivers", async (req, res) => {
+  try {
+    const { data: raceData, error: raceError } = await supabase
+      .from("races")
+      .select("year")
+      .eq("raceId", req.params.raceId);
+
+    if (raceError) {
+      return res.status(500).json({ error: 'Internal Server Error', details: raceError.message });
+    }
+
+    if (!raceData || raceData.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Race not found or missing season information' });
+    }
+
+    const { data, error } = await supabase
+      .from("driverStandings")
+      .select(`drivers (driverRef, code, forename, surname), races (name, round, year, date), position, points, wins`)
+      .eq("raceId", req.params.raceId)
+      .order('position', { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Driver standings not found for the specified race and season' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
+app.get("/api/standings/:raceId/constructors", async (req, res) => {
+  try {
+    const { data: raceData, error: raceError } = await supabase
+      .from("races")
+      .select("year")
+      .eq("raceId", req.params.raceId);
+
+    if (raceError) {
+      return res.status(500).json({ error: 'Internal Server Error', details: raceError.message });
+    }
+
+    if (!raceData || raceData.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Race not found or missing season information' });
+    }
+
+    const { data, error } = await supabase
+      .from("constructorStandings")
+      .select(`constructors (constructorRef, name, nationality), races (name, round, year, date), position, points, wins`)
+      .eq("raceId", req.params.raceId)
+      .order('position', { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Not Found', details: 'Driver standings not found for the specified race and season' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
 
 app.listen(8080, () => {
   console.log("listening on port 8080");
